@@ -16,8 +16,8 @@ Sub CreateEmailButtons()
         ' Calculate the position of the button using the left and top of the entire range
         Dim leftPosition As Double
         Dim topPosition As Double
-        leftPosition = rng.Left + rng.Width + 5
-        topPosition = rng.Rows(i).Top
+        leftPosition = rng.Cells(i, 6).Left
+        topPosition = rng.Cells(i, 6).Top
         
         ' Create a button in column F of each row
         Set btn = ws.Buttons.Add(leftPosition, topPosition, 80, 20)
@@ -54,18 +54,33 @@ Sub SendEmail()
     ' Create a new Outlook email
     Dim OutApp As Object
     Dim OutMail As Object
+    Dim FileSystem As Object
+    Dim FileObj As Object
+    Dim FilePath As String
     
     Set OutApp = CreateObject("Outlook.Application")
     Set OutMail = OutApp.CreateItem(0) ' 0 means email item
+    Set FileSystem = CreateObject("Scripting.FileSystemObject")
     
     With OutMail
         .To = recipient
         .Subject = subject
         .Body = body
         
-        ' Add attachment if specified
+        ' Add attachments if specified
         If attachmentPath <> "" Then
-            .Attachments.Add attachmentPath
+            ' Check if attachment path is a folder
+            If FileSystem.FolderExists(attachmentPath) Then
+                ' Loop through all files in the folder and add them as attachments
+                FilePath = Dir(attachmentPath & "\*")
+                Do While FilePath <> ""
+                    .Attachments.Add attachmentPath & "\" & FilePath
+                    FilePath = Dir
+                Loop
+            Else
+                ' Add single attachment if attachment path is a file
+                .Attachments.Add attachmentPath
+            End If
         End If
         
         ' Display the email (change to .Send to send without displaying)
@@ -74,4 +89,5 @@ Sub SendEmail()
     
     Set OutMail = Nothing
     Set OutApp = Nothing
+    Set FileSystem = Nothing
 End Sub
