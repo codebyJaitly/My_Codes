@@ -1,0 +1,130 @@
+Sub AddTitleAndCreateEmailButtons()
+    Dim ws As Worksheet
+    Dim rng As Range
+    Dim btn As Button
+    Dim i As Long
+    
+    ' Add a new worksheet
+    Set ws = ThisWorkbook.Sheets.Add
+    
+    ' Rename the worksheet
+    ws.Name = "EmailData"
+    
+    ' Format the first row as a header
+    With ws.Range("A1:I1")
+        
+        .Font.Bold = True
+        .Font.Size = 14
+        .Font.Underline = xlUnderlineStyleSingle
+        .Interior.Color = RGB(255, 255, 0) ' Yellow background for header
+    End With
+    
+    ' Fill the second row with labels
+    ws.Cells(2, 1).Resize(1, 7).Value = Array("Mail To", "Subject", "CC", "Body Message", "Attachment Path", "Time Stamp", "Button")
+    
+    
+    ' Add contact information in cell H1
+    With ws.Cells(1, 7)
+        .Value = "Contact: Gaurav.jaitly@hsbc.co.in"
+        .Font.Italic = True
+        .Font.Size = 9
+    End With
+    
+    ' Add a title
+    ws.Cells(1, 1).Value = "Auto Mail Configuration"
+    ws.Range("A1:F1").Merge
+    ws.Cells(1, 1).HorizontalAlignment = xlCenter
+    
+    ' Define the range for button placement (column G)
+    Set rng = ws.Range("G3:G50")
+    
+    ' Loop through each row within the defined range to create buttons
+    For i = 1 To rng.Rows.Count
+        Set btn = ws.Buttons.Add(rng.Cells(i, 1).Left, rng.Cells(i, 1).Top, 80, 20)
+        With btn
+            .OnAction = "SendEmail"
+            .Caption = "Send Email"
+            .Name = "btnEmail_" & i
+        End With
+    Next i
+End Sub
+
+Sub SendEmail()
+    Dim btnName As String
+    Dim row As Long
+    Dim recipient As String
+    Dim cc As String
+    Dim subject As String
+    Dim body As String
+    Dim attachmentPath As String
+    Dim OutApp As Object
+    Dim OutMail As Object
+    Dim FileSystem As Object
+    Dim btn As Object
+    
+    ' Get the name of the button clicked
+    btnName = Application.Caller
+    
+    ' Determine the row from which to read data
+    row = Val(Mid(btnName, Len("btnEmail_") + 1)) + 2 ' Adjust +2 based on your button naming and row offset
+    
+    ' Get a reference to the button to change its appearance later
+    On Error Resume Next
+    Set btn = ThisWorkbook.Sheets("EmailData").Buttons(btnName)
+    If Err.Number <> 0 Then
+        MsgBox "Failed to find the button.", vbCritical
+        Exit Sub
+    End If
+    On Error GoTo 0
+    
+    ' Retrieve email data from the worksheet
+    With ThisWorkbook.Sheets("EmailData")
+        recipient = .Cells(row, 1).Value
+        cc = .Cells(row, 2).Value
+        subject = .Cells(row, 3).Value
+        body = .Cells(row, 4).Value
+        attachmentPath = .Cells(row, 5).Value
+        
+        ' Update the Timestamp
+        .Cells(row, 6).Value = Now()
+        .Cells(row, 6).NumberFormat = "dd-mmm-yyyy hh:mm:ss"
+        
+        ' Change the font color of the button to indicate it's been pressed
+        btn.Font.ColorIndex = 10 ' Dark green
+    End With
+    
+    ' Create an email item
+    Set OutApp = CreateObject("Outlook.Application")
+    Set OutMail = OutApp.CreateItem(0)
+    Set FileSystem = CreateObject("Scripting.FileSystemObject")
+    
+    ' Configure and display the email
+    With OutMail
+        .To = recipient
+        .cc = cc
+        .subject = subject
+        .body = body
+        
+        ' Add attachments if the path is not empty
+        If attachmentPath <> "" Then
+            If FileSystem.FolderExists(attachmentPath) Then
+                Dim FilePath As String
+                FilePath = Dir(attachmentPath & "\*")
+                Do While FilePath <> ""
+                    .Attachments.Add attachmentPath & "\" & FilePath
+                    FilePath = Dir
+                Loop
+            Else
+                .Attachments.Add attachmentPath
+            End If
+        End If
+        
+        .Display ' Change to .Send to automatically send the email
+    End With
+    
+    ' Clean up
+    Set OutMail = Nothing
+    Set OutApp = Nothing
+    Set FileSystem = Nothing
+    Set btn = Nothing
+End Sub
