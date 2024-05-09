@@ -18,8 +18,9 @@ def consolidate_and_compare(file1_path, file2_path):
     consolidated_data = pd.DataFrame()
     
     for sheet_name in xls1.sheet_names:
-        df1 = xls1.parse(sheet_name)
-        df2 = xls2.parse(sheet_name)
+        # Read with specified row skipping and header index
+        df1 = xls1.parse(sheet_name, skiprows=8, header=1)
+        df2 = xls2.parse(sheet_name, skiprows=8, header=1)
         
         if df1.shape != df2.shape or not (df1.columns.equals(df2.columns)):
             raise ValueError(f"Sheet '{sheet_name}' has inconsistent data between files.")
