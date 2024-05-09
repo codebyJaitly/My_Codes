@@ -1,0 +1,36 @@
+import pandas as pd
+
+def read_and_consolidate_excel(file_path):
+    # Load the Excel file
+    xls = pd.ExcelFile(file_path)
+
+    # List to hold data from each sheet
+    all_data = []
+
+    # Iterate through each sheet
+    for sheet_name in xls.sheet_names:
+        # Read each sheet into a DataFrame
+        df = pd.read_excel(xls, sheet_name=sheet_name)
+        
+        # Add a new column with the name of the sheet
+        df['SheetName'] = sheet_name
+        
+        # Append the DataFrame to the list
+        all_data.append(df)
+
+    # Concatenate all DataFrames from the list into a single DataFrame
+    consolidated_df = pd.concat(all_data, ignore_index=True)
+
+    return consolidated_df
+
+# Specify the path to your Excel file
+file_path = 'path_to_your_excel_file.xlsx'
+
+# Call the function and get the consolidated DataFrame
+consolidated_data = read_and_consolidate_excel(file_path)
+
+# Print the consolidated DataFrame
+print(consolidated_data)
+
+# Optional: save the consolidated data to a new Excel file
+consolidated_data.to_excel('consolidated_output.xlsx', index=False)
