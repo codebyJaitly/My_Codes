@@ -10,27 +10,22 @@ def select_excel_file(title):
     root.destroy()  # Destroy the root window
     return file_path
 
-def read_and_verify_files(file1_path, file2_path):
+def consolidate_and_compare(file1_path, file2_path):
+    # Load the Excel files
     xls1 = pd.ExcelFile(file1_path)
     xls2 = pd.ExcelFile(file2_path)
-
-    if not xls1.sheet_names == xls2.sheet_names:
-        raise ValueError("Excel files do not have identical sheet names")
-
-    return xls1, xls2
-
-def consolidate_and_compare(xls1, xls2):
+    
     consolidated_data = pd.DataFrame()
     
-    for sheet in xls1.sheet_names:
-        df1 = xls1.parse(sheet)
-        df2 = xls2.parse(sheet)
+    for sheet_name in xls1.sheet_names:
+        df1 = xls1.parse(sheet_name)
+        df2 = xls2.parse(sheet_name)
         
         if df1.shape != df2.shape or not (df1.columns.equals(df2.columns)):
-            raise ValueError(f"Sheet '{sheet}' has inconsistent data between files.")
+            raise ValueError(f"Sheet '{sheet_name}' has inconsistent data between files.")
         
         differences = df1 - df2
-        df1['SheetName'] = sheet
+        df1['SheetName'] = sheet_name
         
         for col in differences.columns:
             df1[f'Diff_{col}'] = differences[col]
@@ -51,8 +46,7 @@ def main():
         return
     
     try:
-        xls1, xls2 = read_and_verify_files(file1_path, file2_path)
-        consolidated_data = consolidate_and_compare(xls1, xls2)
+        consolidated_data = consolidate_and_compare(file1_path, file2_path)
         output_file = "output_diff.xlsx"
         save_to_excel(consolidated_data, output_file)
         print(f"Data comparison completed. Results saved in '{output_file}'.")
