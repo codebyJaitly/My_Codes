@@ -1,3 +1,22 @@
+import os
+import pandas as pd
+
+def parse_cell(cell):
+    # This function separates letters and numbers in a cell reference, e.g., 'C5' -> ('C', 5)
+    for index, char in enumerate(cell):
+        if char.isdigit():
+            return (cell[:index], int(cell[index:]) - 1)  # Convert Excel 1-based index to 0-based index
+
+def read_excel_sheet(file_path, sheet_name, start_row, end_cell):
+    # Calculate parameters for reading the sheet
+    col_start, row_start = parse_cell(start_row)
+    col_end, row_end = parse_cell(end_cell)
+    col_range = f"{col_start}:{col_end}"
+    
+    # Read the Excel file with specified parameters
+    df = pd.read_excel(file_path, sheet_name=sheet_name, skiprows=row_start, usecols=col_range, engine='openpyxl')
+    return df
+
 def read_excel_files(root_folder, control_df):
     # Walk through all files in the directory structure
     for subdir, dirs, files in os.walk(root_folder):
@@ -22,8 +41,9 @@ def read_excel_files(root_folder, control_df):
                 except Exception as e:
                     print(f"Error processing file {file_path}: {e}")
 
+
 # Example usage
-root_folder = 'path_to_your_excel_files'
-control_file_path = 'path_to_your_control_sheet/control.xlsx'
+root_folder = r'C:\Users\dell\Compare tool\D'
+control_file_path = r'C:\Users\dell\control.xlsx'
 control_df = pd.read_excel(control_file_path)  # Load the control sheet
 read_excel_files(root_folder, control_df)
