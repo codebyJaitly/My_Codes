@@ -1,0 +1,29 @@
+def read_excel_files(root_folder, control_df):
+    # Walk through all files in the directory structure
+    for subdir, dirs, files in os.walk(root_folder):
+        for file in files:
+            if file.endswith('.xlsx'):
+                file_path = os.path.join(subdir, file)
+                try:
+                    print(f"Processing file: {file_path}")
+                    # Open the file to read its sheets
+                    xls = pd.ExcelFile(file_path)
+                    for sheet_name in xls.sheet_names:
+                        # Get parameters for reading this sheet
+                        params = control_df[control_df['Sheet Name'] == sheet_name]
+                        if not params.empty:
+                            start_row = params['Start Cell'].values[0]
+                            end_cell = params['End Cell'].values[0]
+                            # Read the specified sheet with given parameters
+                            data = read_excel_sheet(file_path, sheet_name, start_row, end_cell)
+                            print(data)  # or process data as needed
+                        else:
+                            print(f"No parameters found for sheet {sheet_name} in {file}")
+                except Exception as e:
+                    print(f"Error processing file {file_path}: {e}")
+
+# Example usage
+root_folder = 'path_to_your_excel_files'
+control_file_path = 'path_to_your_control_sheet/control.xlsx'
+control_df = pd.read_excel(control_file_path)  # Load the control sheet
+read_excel_files(root_folder, control_df)
