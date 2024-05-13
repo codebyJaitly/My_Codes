@@ -14,10 +14,12 @@ def read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells
     col_range = f"{col_start}:{col_end}"
     
     # Read the Excel file with specified parameters
+    print(f"Reading sheet {sheet_name} from file {file_path} with parameters: start_row={start_row}, end_cell={end_cell}, fix_merge_cells={fix_merge_cells}, concatenate_cols={concatenate_cols}")
     df = pd.read_excel(file_path, sheet_name=sheet_name, skiprows=row_start, usecols=col_range, engine='openpyxl')
     
     # Handle fix_merge_cells flag
     if fix_merge_cells == 'Yes':
+        print("Fixing merge cells by forward filling.")
         df = df.ffill()  # Forward fill to fix merge cells
     
     # Handle concatenating columns based on the "Fix Merge Cells" flag
@@ -31,8 +33,10 @@ def read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells
         else:
             print(f"Error: One or both of the specified columns ({col1}, {col2}) do not exist in the dataframe.")
     else:
-        df['Unique Column'] = df.iloc[:, 0]  # Use the first column as the unique column
-    
+        print("No need to concatenate columns or fix merge cells.")
+        # Define the first column as the unique column
+        df['Unique Column'] = df.iloc[:, 0]
+
     return df
 
 def read_excel_files(root_folder, control_df):
@@ -69,6 +73,7 @@ def read_excel_files(root_folder, control_df):
 
     # Concatenate all DataFrames in the list
     if dfs:
+        print("Concatenating all DataFrames.")
         master_df = pd.concat(dfs, ignore_index=True)
         return master_df
     else:
