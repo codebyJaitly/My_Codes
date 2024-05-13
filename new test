@@ -7,7 +7,7 @@ def parse_cell(cell):
         if char.isdigit():
             return (cell[:index], int(cell[index:]) - 1)  # Convert Excel 1-based index to 0-based index
 
-def read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells):
+def read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells, concatenate_cols):
     # Calculate parameters for reading the sheet
     col_start, row_start = parse_cell(start_row)
     col_end, row_end = parse_cell(end_cell)
@@ -19,7 +19,12 @@ def read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells
     # Handle fix_merge_cells flag
     if fix_merge_cells == 'Yes':
         df = df.ffill()  # Forward fill to fix merge cells
-        
+    
+    # Handle concatenating columns
+    if concatenate_cols:
+        col1, col2 = concatenate_cols.split('&')
+        df['Unique Column'] = df[col1] + '_' + df[col2]  # Concatenate the two columns
+    
     return df
 
 def read_excel_files(root_folder, control_df):
@@ -42,8 +47,9 @@ def read_excel_files(root_folder, control_df):
                             start_row = params['Start Cell'].values[0]
                             end_cell = params['End Cell'].values[0]
                             fix_merge_cells = params['Fix Merge Cells'].values[0]
+                            concatenate_cols = params['Concatenate Columns'].values[0]
                             # Read the specified sheet with given parameters
-                            data = read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells)
+                            data = read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells, concatenate_cols)
                             # Add file name and sheet name as separate columns
                             data['File Name'] = file
                             data['Sheet Name'] = sheet_name
@@ -56,12 +62,6 @@ def read_excel_files(root_folder, control_df):
 
     # Concatenate all DataFrames in the list
     master_df = pd.concat(dfs, ignore_index=True)
-    
-    # Create a unique column based on the "Fix Merge Cells" flag
-    if 'Fix Merge Cells' in control_df.columns and 'Unique Column' in control_df.columns:
-        unique_col = control_df.loc[control_df['Fix Merge Cells'] == 'Yes', 'Unique Column'].iloc[0]
-        if unique_col:
-            master_df[unique_col] = master_df.apply(lambda x: f"{x['File Name']}_{x['Sheet Name']}_{x[unique_col]}", axis=1)
     
     return master_df
 
