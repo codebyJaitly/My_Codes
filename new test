@@ -23,7 +23,9 @@ def read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells
     # Handle concatenating columns
     if concatenate_cols:
         col1, col2 = concatenate_cols.split('&')
-        df['Unique Column'] = df[col1] + '_' + df[col2]  # Concatenate the two columns
+        col1_index = ord(col1.upper()) - 65  # Convert column letter to 0-based index
+        col2_index = ord(col2.upper()) - 65  # Convert column letter to 0-based index
+        df['Unique Column'] = df.iloc[:, col1_index] + '_' + df.iloc[:, col2_index]  # Concatenate the two columns
     
     return df
 
@@ -42,7 +44,7 @@ def read_excel_files(root_folder, control_df):
                     xls = pd.ExcelFile(file_path)
                     for sheet_name in xls.sheet_names:
                         # Get parameters for reading this sheet from control file
-                        params = control_df[(control_df['Sheet Name'] == sheet_name) & (control_df['File Name'] == file)]
+                        params = control_df[control_df['Sheet Name'] == sheet_name]
                         if not params.empty:
                             start_row = params['Start Cell'].values[0]
                             end_cell = params['End Cell'].values[0]
@@ -50,8 +52,7 @@ def read_excel_files(root_folder, control_df):
                             concatenate_cols = params['Concatenate Columns'].values[0]
                             # Read the specified sheet with given parameters
                             data = read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells, concatenate_cols)
-                            # Add file name and sheet name as separate columns
-                            data['File Name'] = file
+                            # Add sheet name as a column
                             data['Sheet Name'] = sheet_name
                             # Append the DataFrame to the list
                             dfs.append(data)
