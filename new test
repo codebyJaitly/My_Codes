@@ -7,7 +7,7 @@ def parse_cell(cell):
         if char.isdigit():
             return (cell[:index], int(cell[index:]) - 1)  # Convert Excel 1-based index to 0-based index
 
-def read_excel_sheet(file_path, sheet_name, start_row, end_cell, concatenate_cols):
+def read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells, concatenate_cols):
     # Calculate parameters for reading the sheet
     col_start, row_start = parse_cell(start_row)
     col_end, row_end = parse_cell(end_cell)
@@ -16,10 +16,20 @@ def read_excel_sheet(file_path, sheet_name, start_row, end_cell, concatenate_col
     # Read the Excel file with specified parameters
     df = pd.read_excel(file_path, sheet_name=sheet_name, skiprows=row_start, usecols=col_range, engine='openpyxl')
     
-    # Handle concatenating columns
-    if concatenate_cols:
-        col_list = [col.strip() for col in concatenate_cols.split(',')]
-        df['Unique Column'] = df[col_list].apply('_'.join, axis=1)  # Concatenate the specified columns
+    # Handle fix_merge_cells flag
+    if fix_merge_cells == 'Yes':
+        df = df.ffill()  # Forward fill to fix merge cells
+    
+    # Handle concatenating columns based on the "Fix Merge Cells" flag
+    if fix_merge_cells == 'Yes' and concatenate_cols:
+        col1, col2 = concatenate_cols.split('&')
+        col1_index = ord(col1.upper()) - 65  # Convert column letter to 0-based index
+        col2_index = ord(col2.upper()) - 65  # Convert column letter to 0-based index
+        print(f"Concatenating columns: {col1} and {col2}")
+        if col1 in df.columns and col2 in df.columns:
+            df['Unique Column'] = df.iloc[:, col1_index] + '_' + df.iloc[:, col2_index]  # Concatenate the two columns
+        else:
+            print(f"Error: One or both of the specified columns ({col1}, {col2}) do not exist in the dataframe.")
     else:
         df['Unique Column'] = df.iloc[:, 0]  # Use the first column as the unique column
     
@@ -44,9 +54,10 @@ def read_excel_files(root_folder, control_df):
                         if not params.empty:
                             start_row = params['Start Cell'].values[0]
                             end_cell = params['End Cell'].values[0]
-                            concatenate_cols = params['Concatenate Columns'].values[0] if params['Fix Merge Cells'].values[0] == 'Yes' else None
+                            fix_merge_cells = params['Fix Merge Cells'].values[0]
+                            concatenate_cols = params['Concatenate Columns'].values[0]
                             # Read the specified sheet with given parameters
-                            data = read_excel_sheet(file_path, sheet_name, start_row, end_cell, concatenate_cols)
+                            data = read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells, concatenate_cols)
                             # Add sheet name as a column
                             data['Sheet Name'] = sheet_name
                             # Append the DataFrame to the list
