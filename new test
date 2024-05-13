@@ -1,0 +1,73 @@
+import os
+import pandas as pd
+
+def parse_cell(cell):
+    # This function separates letters and numbers in a cell reference, e.g., 'C5' -> ('C', 5)
+    for index, char in enumerate(cell):
+        if char.isdigit():
+            return (cell[:index], int(cell[index:]) - 1)  # Convert Excel 1-based index to 0-based index
+
+def read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells):
+    # Calculate parameters for reading the sheet
+    col_start, row_start = parse_cell(start_row)
+    col_end, row_end = parse_cell(end_cell)
+    col_range = f"{col_start}:{col_end}"
+    
+    # Read the Excel file with specified parameters
+    df = pd.read_excel(file_path, sheet_name=sheet_name, skiprows=row_start, usecols=col_range, engine='openpyxl')
+    
+    # Handle fix_merge_cells flag
+    if fix_merge_cells == 'Yes':
+        df = df.ffill()  # Forward fill to fix merge cells
+        
+    return df
+
+def read_excel_files(root_folder, control_df):
+    # Initialize an empty list to store DataFrames
+    dfs = []
+    
+    # Walk through all files in the directory structure
+    for subdir, dirs, files in os.walk(root_folder):
+        for file in files:
+            if file.endswith('.xlsx'):
+                file_path = os.path.join(subdir, file)
+                try:
+                    print(f"Processing file: {file_path}")
+                    # Open the file to read its sheets
+                    xls = pd.ExcelFile(file_path)
+                    for sheet_name in xls.sheet_names:
+                        # Get parameters for reading this sheet from control file
+                        params = control_df[(control_df['Sheet Name'] == sheet_name) & (control_df['File Name'] == file)]
+                        if not params.empty:
+                            start_row = params['Start Cell'].values[0]
+                            end_cell = params['End Cell'].values[0]
+                            fix_merge_cells = params['Fix Merge Cells'].values[0]
+                            # Read the specified sheet with given parameters
+                            data = read_excel_sheet(file_path, sheet_name, start_row, end_cell, fix_merge_cells)
+                            # Add file name and sheet name as separate columns
+                            data['File Name'] = file
+                            data['Sheet Name'] = sheet_name
+                            # Append the DataFrame to the list
+                            dfs.append(data)
+                        else:
+                            print(f"No parameters found for sheet {sheet_name} in {file}")
+                except Exception as e:
+                    print(f"Error processing file {file_path}: {e}")
+
+    # Concatenate all DataFrames in the list
+    master_df = pd.concat(dfs, ignore_index=True)
+    
+    # Create a unique column based on the "Fix Merge Cells" flag
+    if 'Fix Merge Cells' in control_df.columns and 'Unique Column' in control_df.columns:
+        unique_col = control_df.loc[control_df['Fix Merge Cells'] == 'Yes', 'Unique Column'].iloc[0]
+        if unique_col:
+            master_df[unique_col] = master_df.apply(lambda x: f"{x['File Name']}_{x['Sheet Name']}_{x[unique_col]}", axis=1)
+    
+    return master_df
+
+# Example usage
+root_folder = r'C:\Users\dell\Compare tool\D'
+control_file_path = r'C:\Users\dell\control.xlsx'
+control_df = pd.read_excel(control_file_path)  # Load the control sheet
+master_df = read_excel_files(root_folder, control_df)
+print(master_df)  # Display the concatenated DataFrame
