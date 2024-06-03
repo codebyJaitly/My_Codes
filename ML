@@ -1,0 +1,164 @@
+import pandas as pd
+import numpy as np
+
+# Create a sample dataframe with financial data for 10 periods
+data = {
+    'UniqueKey': [f'ID_{i}' for i in range(1, 11)],
+    'Sales_Period1': [100, 150, 200, 250, 300, 350, 400, 450, 500, 550],
+    'Purchases_Period1': [80, 120, 160, 200, 240, 280, 320, 360, 400, 440],
+    'Expenses_Period1': [20, 30, 40, 50, 60, 70, 80, 90, 100, 110],
+    'Sales_Period2': [110, 160, 210, 260, 310, 360, 410, 460, 510, 560],
+    'Purchases_Period2': [85, 125, 165, 205, 245, 285, 325, 365, 405, 445],
+    'Expenses_Period2': [22, 33, 44, 55, 66, 77, 88, 99, 110, 121],
+    # Add more periods as needed...
+}
+
+df = pd.DataFrame(data)
+df.set_index('UniqueKey', inplace=True)
+
+# Inspect the data
+
+
+
+
+
+# Define the feature extraction function
+def extract_features(df):
+    features = pd.DataFrame(index=df.index)
+    
+    for period_col in df.columns:
+        values = df[period_col]
+        
+        # Constant values within the same period
+        unique_values = values.value_counts()
+        features[f'{period_col}_constant'] = values.apply(lambda x: unique_values[x] > 1)
+        
+        # Positive/Negative values
+        features[f'{period_col}_positive'] = values > 0
+        features[f'{period_col}_negative'] = values < 0
+        
+        # Zero values
+        features[f'{period_col}_zero'] = values == 0
+        
+        # Comparison to other cells in the same row
+        for compare_col in df.columns:
+            if period_col != compare_col:
+                features[f'{period_col}_less_than_{compare_col}'] = values < df[compare_col]
+                features[f'{period_col}_greater_than_{compare_col}'] = values > df[compare_col]
+    
+    return features
+
+# Extract features for the dataset
+features = extract_features(df)
+
+# Standardize the data
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+features_scaled = scaler.fit_transform(features)
+
+# Convert scaled data back to DataFrame for easier handling
+features_scaled = pd.DataFrame(features_scaled, columns=features.columns, index=features.index)
+
+# Inspect the transformed data
+print(features_scaled.head())
+
+
+
+
+
+from sklearn.ensemble import IsolationForest
+
+# Train the Isolation Forest model
+model = IsolationForest(contamination='auto', random_state=42)
+model.fit(features_scaled)
+
+# Add anomaly scores to the data
+features['Anomaly_Score'] = model.decision_function(features_scaled)
+features['Anomaly'] = model.predict(features_scaled)
+
+# -1 for anomalies, 1 for normal points
+features['Anomaly'] = features['Anomaly'].apply(lambda x: 'Anomaly' if x == -1 else 'Normal')
+
+# Inspect the results
+print(features.head())
+
+
+
+def rule_based_anomaly_detection(df):
+    anomalies = pd.DataFrame(index=df.index)
+    
+    for period_col in df.columns:
+        values = df[period_col]
+        
+        # Constant values within the same period
+        unique_values = values.value_counts()
+        anomalies[f'{period_col}_constant_anomaly'] = values.apply(lambda x: unique_values[x] == 1)
+        
+        # Positive/Negative values
+        anomalies[f'{period_col}_positive_anomaly'] = values <= 0
+        anomalies[f'{period_col}_negative_anomaly'] = values >= 0
+        
+        # Zero values
+        anomalies[f'{period_col}_zero_anomaly'] = values != 0
+        
+        # Comparison to other cells in the same row
+        for compare_col in df.columns:
+            if period_col != compare_col:
+                anomalies[f'{period_col}_less_than_{compare_col}_anomaly'] = values >= df[compare_col]
+                anomalies[f'{period_col}_greater_than_{compare_col}_anomaly'] = values <= df[compare_col]
+    
+    return anomalies
+
+# Apply rule-based anomaly detection to the dataset
+rule_based_anomalies = rule_based_anomaly_detection(df)
+
+# Combine rule-based anomalies with model-based anomalies
+combined_anomalies = features.copy()
+for col in rule_based_anomalies.columns:
+    combined_anomalies[col] = rule_based_anomalies[col]
+
+print("Combined Anomalies:")
+print(combined_anomalies.head())
+
+
+
+# Create a new sample data for the 11th period
+new_data = {
+    'UniqueKey': [f'ID_{i}' for i in range(1, 11)],
+    'Sales_Period11': [120, 170, 220, 270, 320, 370, 420, 470, 520, 570],
+    'Purchases_Period11': [90, 130, 170, 210, 250, 290, 330, 370, 410, 450],
+    'Expenses_Period11': [25, 35, 45, 55, 65, 75, 85, 95, 105, 115]
+}
+
+new_df = pd.DataFrame(new_data)
+new_df.set_index('UniqueKey', inplace=True)
+
+# Extract and scale features for the new data
+new_features = extract_features(new_df)
+new_features_scaled = scaler.transform(new_features)
+
+# Convert scaled data back to DataFrame for easier handling
+new_features_scaled = pd.DataFrame(new_features_scaled, columns=new_features.columns, index=new_features.index)
+
+# Apply the model to the new data
+new_features['Anomaly_Score'] = model.decision_function(new_features_scaled)
+new_features['Anomaly'] = model.predict(new_features_scaled)
+new_features['Anomaly'] = new_features['Anomaly'].apply(lambda x: 'Anomaly' if x == -1 else 'Normal')
+
+# Apply rule-based anomaly detection to the new data
+new_rule_based_anomalies = rule_based_anomaly_detection(new_df)
+
+# Combine rule-based anomalies with model-based anomalies for new data
+for col in new_rule_based_anomalies.columns:
+    new_features[col] = new_rule_based_anomalies[col]
+
+# Inspect anomalies
+anomalies = new_features[new_features['Anomaly'] == 'Anomaly']
+print("Anomalies detected:")
+print(anomalies)
+
+# Save anomalies to a new sheet
+anomalies.to_excel('anomalies_report.xlsx', index=False)
+
+
