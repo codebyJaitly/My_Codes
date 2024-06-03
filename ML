@@ -125,7 +125,7 @@ new_data = {
 new_df = pd.DataFrame(new_data)
 new_df.set_index('UniqueKey', inplace=True)
 
-# Extract and scale features for the new data
+# Extract and align features for the new data
 new_features = extract_features(new_df)
 
 # Ensure the new features align with the original feature set
@@ -133,6 +133,7 @@ missing_cols = set(features.columns) - set(new_features.columns)
 for col in missing_cols:
     new_features[col] = 0
 
+# Reorder columns to match the training data
 new_features = new_features[features.columns]
 
 # Standardize the new data using the same scaler
