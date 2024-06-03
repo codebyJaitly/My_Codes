@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
+from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import StandardScaler
 
-# Create a sample dataframe with financial data for 10 periods
+# Sample data for illustration
 data = {
     'UniqueKey': [f'ID_{i}' for i in range(1, 11)],
     'Sales_Period1': [100, 150, 200, 250, 300, 350, 400, 450, 500, 550],
@@ -17,10 +19,8 @@ df = pd.DataFrame(data)
 df.set_index('UniqueKey', inplace=True)
 
 # Inspect the data
-
-
-
-
+print("Initial Data:")
+print(df)
 
 # Define the feature extraction function
 def extract_features(df):
@@ -52,8 +52,6 @@ def extract_features(df):
 features = extract_features(df)
 
 # Standardize the data
-from sklearn.preprocessing import StandardScaler
-
 scaler = StandardScaler()
 features_scaled = scaler.fit_transform(features)
 
@@ -61,13 +59,8 @@ features_scaled = scaler.fit_transform(features)
 features_scaled = pd.DataFrame(features_scaled, columns=features.columns, index=features.index)
 
 # Inspect the transformed data
+print("Extracted and Scaled Features:")
 print(features_scaled.head())
-
-
-
-
-
-from sklearn.ensemble import IsolationForest
 
 # Train the Isolation Forest model
 model = IsolationForest(contamination='auto', random_state=42)
@@ -81,10 +74,10 @@ features['Anomaly'] = model.predict(features_scaled)
 features['Anomaly'] = features['Anomaly'].apply(lambda x: 'Anomaly' if x == -1 else 'Normal')
 
 # Inspect the results
+print("Features with Anomaly Scores:")
 print(features.head())
 
-
-
+# Define the rule-based anomaly detection function
 def rule_based_anomaly_detection(df):
     anomalies = pd.DataFrame(index=df.index)
     
@@ -121,8 +114,6 @@ for col in rule_based_anomalies.columns:
 print("Combined Anomalies:")
 print(combined_anomalies.head())
 
-
-
 # Create a new sample data for the 11th period
 new_data = {
     'UniqueKey': [f'ID_{i}' for i in range(1, 11)],
@@ -136,6 +127,15 @@ new_df.set_index('UniqueKey', inplace=True)
 
 # Extract and scale features for the new data
 new_features = extract_features(new_df)
+
+# Ensure the new features align with the original feature set
+missing_cols = set(features.columns) - set(new_features.columns)
+for col in missing_cols:
+    new_features[col] = 0
+
+new_features = new_features[features.columns]
+
+# Standardize the new data using the same scaler
 new_features_scaled = scaler.transform(new_features)
 
 # Convert scaled data back to DataFrame for easier handling
@@ -160,5 +160,3 @@ print(anomalies)
 
 # Save anomalies to a new sheet
 anomalies.to_excel('anomalies_report.xlsx', index=False)
-
-
