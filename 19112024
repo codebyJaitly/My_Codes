@@ -1,0 +1,91 @@
+import os
+import pandas as pd
+
+def parse_cell(cell):
+    """
+    Parses a cell reference into its column and row components.
+    Example: 'C5' -> ('C', 4) (row is zero-indexed for Python).
+    """
+    for index, char in enumerate(cell):
+        if char.isdigit():
+            return cell[:index], int(cell[index:]) - 1
+
+def read_excel_sheet(file_path, sheet_name, start_cell, end_cell):
+    """
+    Reads a specific range from an Excel sheet based on start and end cell references.
+    """
+    col_start, row_start = parse_cell(start_cell)
+    col_end, row_end = parse_cell(end_cell)
+    col_range = f"{col_start}:{col_end}"
+    
+    # Read the Excel file with specified parameters
+    df = pd.read_excel(file_path, sheet_name=sheet_name, skiprows=row_start, usecols=col_range, engine='openpyxl')
+    return df
+
+def process_excel_files(root_folder, control_df):
+    """
+    Processes all Excel files in subfolders based on the control file specifications.
+    Appends data with additional columns for template name, region, and sheet name.
+    """
+    all_data = []  # Collect data from all files
+    
+    # Traverse the directory structure
+    for subdir, dirs, files in os.walk(root_folder):
+        template_name = os.path.basename(subdir)  # Folder name as template name
+        
+        for file in files:
+            if file.endswith('.xlsx'):
+                file_path = os.path.join(subdir, file)
+                region_name = os.path.splitext(file)[0]  # File name (without extension) as region name
+                
+                try:
+                    print(f"Processing file: {file_path}")
+                    xls = pd.ExcelFile(file_path)  # Open the file to read its sheets
+                    
+                    # Filter control file for this template and process accordingly
+                    template_params = control_df[control_df['Template Name'] == template_name]
+                    
+                    for _, row in template_params.iterrows():
+                        sheet_name = row['Sheet Name']
+                        start_cell = row['Start Cell']
+                        end_cell = row['End Cell']
+                        
+                        # Check if the specified sheet exists in the Excel file
+                        if sheet_name in xls.sheet_names:
+                            # Read the specified range from the sheet
+                            data = read_excel_sheet(file_path, sheet_name, start_cell, end_cell)
+                            
+                            # Add identifying columns
+                            data['Template Name'] = template_name
+                            data['Region Name'] = region_name
+                            data['Sheet Name'] = sheet_name
+                            
+                            # Append the data
+                            all_data.append(data)
+                        else:
+                            print(f"Sheet {sheet_name} not found in {file}")
+                except Exception as e:
+                    print(f"Error processing file {file_path}: {e}")
+    
+    # Combine all data into a single DataFrame
+    final_df = pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
+    return final_df
+
+# Example usage
+root_folder = r'C:\Users\dell\Compare tool\D'
+control_file_path = r'C:\Users\dell\control.xlsx'
+
+# Load the control file (must include the specified columns)
+control_df = pd.read_excel(control_file_path)
+
+# Control file expected format:
+# | Template Name | Sheet Name | Start Cell | End Cell |
+# -----------------------------------------------------
+# | Sales         | Data       | A1         | D20      |
+# | Finance       | Summary    | B2         | E10      |
+
+# Process the files and get the combined DataFrame
+final_df = process_excel_files(root_folder, control_df)
+
+# Output the resulting DataFrame
+print(final_df)
